@@ -1327,3 +1327,38 @@ div[id="validationModal"] > div {
   font-weight: 600 !important;
   color: var(--primary) !important;
 }
+.file-hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.linked-case-item {
+  gap: 8px;
+}
+
+.linked-case-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.linked-case-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #e0ecff;
+  color: #1d4ed8;
+}
+
+.linked-case-actions button:hover {
+  background: #bfdbfe;
+}
+
+.details-action-bar .btn[hidden] {
+  display: none;
+}
