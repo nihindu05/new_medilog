@@ -1,382 +1,300 @@
 document.addEventListener(
-"DOMContentLoaded",
-()=>{
+    "DOMContentLoaded",
+    () => {
 
 
-lucide.createIcons();
+        lucide.createIcons();
 
 
+        // ============================
+        // CURRENT USER
+        // ============================
 
-// =======================
-// LOAD CURRENT USER
-// =======================
 
+        const user =
+            JSON.parse(
+                localStorage.getItem("currentUser")
+            );
 
-const user =
-JSON.parse(
-localStorage.getItem("currentUser")
-);
 
+        if (!user) {
 
+            window.location.href = "auth.html";
 
-//if(!user){
+            return;
+        }
 
-//window.location.href="auth.html";
 
-//return;
 
-//}
+        document.getElementById("userName")
+            .textContent = user.name;
 
 
 
-document.getElementById("userName")
-.textContent=user.name;
+        document.getElementById("userRole")
+            .textContent = user.role;
 
 
 
-document.getElementById("userRole")
-.textContent=user.role;
+        document.getElementById("welcomeName")
+            .textContent = user.name;
 
 
 
-document.getElementById("welcomeName")
-.textContent=user.name;
+        document.getElementById("userAvatar")
+            .textContent =
+            user.name
+                .charAt(0)
+                .toUpperCase();
 
 
 
-document.getElementById("userAvatar")
-.textContent=
-user.name.charAt(0).toUpperCase();
+        // ============================
+        // TEMPORARY DATABASE
+        // ============================
 
 
+        let cases =
+            JSON.parse(
+                localStorage.getItem("doctorCases")
+            )
+            ||
+            [
 
+                {
+                    id:"CL-2026-001",
+                    patient:"Kamal Perera",
+                    type:"Clinical",
+                    status:"Pending Examination"
+                },
 
 
+                {
+                    id:"PM-2026-004",
+                    patient:"Unknown",
+                    type:"Autopsy",
+                    status:"Completed"
+                }
 
+            ];
 
-// =======================
-// ASSIGNED CASES
-// =======================
 
 
-const cases=[
+        let examinations =
+            JSON.parse(
+                localStorage.getItem("doctorExams")
+            )
+            ||
+            [
 
+                {
+                    case:"CL-2026-001",
+                    exam:"Injury Assessment",
+                    priority:"High",
+                    status:"Pending"
+                },
 
-{
 
-id:"CL-2026-001",
+                {
+                    case:"PM-2026-004",
+                    exam:"Autopsy Examination",
+                    priority:"Normal",
+                    status:"Completed"
+                }
 
-patient:"Kamal Perera",
+            ];
 
-type:"Clinical",
 
-status:"Pending Examination"
 
-},
+        let reports =
+            JSON.parse(
+                localStorage.getItem("doctorReports")
+            )
+            ||
+            [
 
+                {
+                    id:"RPT-001",
+                    case:"CL-2026-001",
+                    status:"Draft"
+                },
 
-{
 
-id:"PM-2026-004",
+                {
+                    id:"RPT-002",
+                    case:"PM-2026-004",
+                    status:"Submitted"
+                }
 
-patient:"Unknown",
+            ];
 
-type:"Autopsy",
 
-status:"Completed"
 
-}
 
+        function saveData(){
 
-];
 
+            localStorage.setItem(
+                "doctorCases",
+                JSON.stringify(cases)
+            );
 
 
+            localStorage.setItem(
+                "doctorExams",
+                JSON.stringify(examinations)
+            );
 
 
-const caseTable =
-document.getElementById("caseTable");
+            localStorage.setItem(
+                "doctorReports",
+                JSON.stringify(reports)
+            );
 
 
+        }
 
-cases.forEach(item=>{
 
 
-caseTable.innerHTML+=`
 
 
-<tr>
+        // ============================
+        // UPDATE STATISTICS
+        // ============================
 
-<td>${item.id}</td>
 
-<td>${item.patient}</td>
+        function updateStats(){
 
-<td>${item.type}</td>
 
+            const cards =
+                document.querySelectorAll(
+                    ".stat-card h3"
+                );
 
-<td>
 
-<span class="${
-item.status==="Completed"
-?
-"status-complete"
-:
-"status-pending"
-}">
+            cards[0].textContent =
+                cases.length;
 
-${item.status}
 
-</span>
 
+            cards[1].textContent =
+                examinations.filter(
+                    e=>e.status==="Pending"
+                ).length;
 
-</td>
 
 
-<td>
+            cards[2].textContent =
+                reports.filter(
+                    r=>r.status==="Draft"
+                ).length;
 
-<button class="table-action">
-Open
-</button>
 
 
-</td>
+            cards[3].textContent =
+                cases.filter(
+                    c=>c.status==="Completed"
+                ).length;
 
 
-</tr>
+        }
 
 
-`;
 
 
 
-});
 
+        // ============================
+        // LOAD CASE TABLE
+        // ============================
 
 
+        function loadCases(){
 
 
+            const table =
+                document.getElementById(
+                    "caseTable"
+                );
 
 
+            table.innerHTML="";
 
-// =======================
-// EXAMINATION TASKS
-// =======================
 
 
-const examinations=[
+            cases.forEach(
+                item=>{
 
 
-{
+                table.innerHTML += `
 
-case:"CL-2026-001",
 
-exam:"Injury Assessment",
+                <tr>
 
-priority:"High"
+                <td>${item.id}</td>
 
-},
+                <td>${item.patient}</td>
 
+                <td>${item.type}</td>
 
-{
 
-case:"PM-2026-004",
+                <td>
 
-exam:"Autopsy Examination",
+                <span class="${
+                    item.status==="Completed"
+                    ?
+                    "status-complete"
+                    :
+                    "status-pending"
+                }">
 
-priority:"Normal"
+                ${item.status}
 
-}
+                </span>
 
+                </td>
 
-];
 
+                <td>
 
+                <button 
+                class="table-action open-case"
+                data-id="${item.id}">
 
+                Open
 
+                </button>
 
-const examTable =
-document.getElementById("examTable");
 
+                </td>
 
 
-examinations.forEach(item=>{
+                </tr>
 
 
-examTable.innerHTML+=`
+                `;
 
 
-<tr>
+            });
 
-<td>${item.case}</td>
 
-<td>${item.exam}</td>
+            document
+            .querySelectorAll(".open-case")
+            .forEach(btn=>{
 
-<td>${item.priority}</td>
 
+                btn.onclick=()=>{
 
-<td>
 
-<button class="table-action">
+                    openCase(
+                        btn.dataset.id
+                    );
 
-Start
 
-</button>
+                };
 
-</td>
 
+            });
 
-</tr>
 
-
-`;
-
-
-
-});
-
-
-
-
-
-
-
-
-
-// =======================
-// REPORTS
-// =======================
-
-
-const reports=[
-
-
-{
-
-id:"RPT-001",
-
-case:"CL-2026-001",
-
-status:"Draft"
-
-},
-
-
-{
-
-id:"RPT-002",
-
-case:"PM-2026-004",
-
-status:"Submitted"
-
-}
-
-
-];
-
-
-
-
-
-const reportTable =
-document.getElementById("reportTable");
-
-
-
-reports.forEach(item=>{
-
-
-reportTable.innerHTML+=`
-
-
-<tr>
-
-
-<td>
-${item.id}
-</td>
-
-
-<td>
-${item.case}
-</td>
-
-
-<td>
-
-
-<span class="${
-item.status==="Submitted"
-?
-"status-complete"
-:
-"status-pending"
-}">
-
-
-${item.status}
-
-
-</span>
-
-
-</td>
-
-
-
-<td>
-
-
-<button class="table-action">
-
-View
-
-</button>
-
-
-</td>
-
-
-
-</tr>
-
-
-`;
-
-
-
-});
-
-
-
-
-
-
-
-
-// =======================
-// LOGOUT
-// =======================
-
-
-document
-.getElementById("logoutBtn")
-.addEventListener(
-"click",
-()=>{
-
-
-localStorage.removeItem(
-"currentUser"
-);
-
-
-
-window.location.href="auth.html";
-
-
-});
-
-
-
-});
+        }
