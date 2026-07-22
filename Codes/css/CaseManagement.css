@@ -1363,3 +1363,186 @@ label.field-locked input[type="checkbox"] {
   color: #fff;
   box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
 }
+
+/* ===================== NOTIFICATION DROPDOWN ===================== */
+
+.notify-wrap {
+  position: relative;
+}
+
+.notify-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 330px;
+  max-width: 86vw;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  z-index: 40;
+  overflow: hidden;
+}
+
+.notify-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--page-bg);
+}
+
+.notify-head strong {
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.notify-head span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.notify-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.notify-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notify-item:last-child {
+  border-bottom: 0;
+}
+
+.notify-item:hover {
+  background: var(--page-bg);
+}
+
+.notify-item-icon {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.notify-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notify-item-text strong {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  line-height: 1.35;
+}
+
+.notify-item-text small {
+  font-size: 0.72rem;
+  color: var(--text-soft, #64748b);
+}
+
+.notify-item.danger .notify-item-text strong {
+  color: var(--danger);
+}
+
+.notify-empty {
+  padding: 22px 16px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-soft, #64748b);
+}
+
+/* ===================== GLOBAL SEARCH RESULTS ===================== */
+
+.global-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  z-index: 40;
+  overflow: hidden;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.global-search-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.global-search-item:last-child {
+  border-bottom: 0;
+}
+
+.global-search-item:hover {
+  background: var(--page-bg);
+}
+
+.global-search-item-icon {
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--text-main);
+}
+
+.global-search-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.global-search-item-text strong {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  line-height: 1.35;
+}
+
+.global-search-item-text small {
+  font-size: 0.72rem;
+  color: var(--text-soft, #64748b);
+}
+
+.global-search-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-soft, #64748b);
+}
+
+/* Fix: neutralize `.global-search span { position: absolute }` inside the results dropdown */
+.global-search .global-search-results span {
+  position: static;
+  left: auto;
+  z-index: auto;
+  color: inherit;
+}
+
+.global-search .global-search-results .global-search-item-icon {
+  color: var(--text-main);
+}
+
+.global-search-item {
+  font: inherit;
+}
