@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000/api/police-court";
+const API_URL = "/police-court";
 let records = [];
 const $ = id => document.getElementById(id);
 const modal = $("recordModal");
@@ -29,13 +29,7 @@ function showToast(message, isError = false) {
 }
 
 async function apiRequest(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {"Content-Type": "application/json", ...(options.headers || {})}
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "The server could not process the request.");
-  return data;
+  return window.MedLogsAPI.request(url, options);
 }
 
 async function loadRecords() {
@@ -43,7 +37,7 @@ async function loadRecords() {
     records = await apiRequest(API_URL);
   } catch (error) {
     records = [];
-    showToast("Cannot reach Flask. Start the backend on port 5000.", true);
+    showToast(error.message || "The records could not be loaded.", true);
   }
   render();
 }

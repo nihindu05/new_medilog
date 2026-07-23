@@ -1,73 +1,21 @@
-// =============================
-// PAGE ACCESS PROTECTION
-// =============================
-
-function protectPage(requiredRole){
-
-
-    const user =
-    JSON.parse(
-        localStorage.getItem("user")
-    );
-
-
-    // Check if user is logged in
-
-    if(!user){
-
-        alert(
-            "Please login first."
-        );
-
-
-        window.location.href =
-        "auth.html";
-
-        return false;
-    }
-
-
-
-    // Check role permission
-
-    if(user.role.toUpperCase() !== requiredRole.toUpperCase()){
-
-
-        alert(
-            "Access denied. You do not have permission to access this page."
-        );
-
-
-        window.location.href =
-        "auth.html";
-
-
-        return false;
-
-    }
-
-
-
-    return true;
-
+﻿function protectPage(requiredRole) {
+  const session = window.MedLogsAPI?.getSession();
+  const user = session?.user;
+  if (!user) {
+    window.location.href = "auth.html";
+    return false;
+  }
+  const required = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const roles = user.roles || [user.role].filter(Boolean);
+  if (requiredRole && !required.some(role => roles.includes(role))) {
+    alert("Access denied. You do not have permission to access this page.");
+    window.location.href = "auth.html";
+    return false;
+  }
+  return true;
 }
 
-
-
-
-// =============================
-// LOGOUT FUNCTION
-// =============================
-
-function logout(){
-
-
-    localStorage.removeItem(
-        "user"
-    );
-
-
-    window.location.href =
-    "auth.html";
-
+function logout() {
+  window.MedLogsAPI?.clearSession();
+  window.location.href = "auth.html";
 }

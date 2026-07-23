@@ -8,6 +8,8 @@ __pycache__/
 # Virtual environments
 venv/
 env/
+.venv/
+Backend/.venv/
 
 # IDE files
 .vscode/

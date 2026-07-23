@@ -14,7 +14,7 @@ document.addEventListener(
 
     const currentUser =
     JSON.parse(
-        localStorage.getItem("currentUser")
+        sessionStorage.getItem("currentUser")
     );
 
 

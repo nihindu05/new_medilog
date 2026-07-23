@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, g, jsonify, request
 from psycopg2 import errorcodes
 
 from database import get_connection
+from security import require_auth
 
 
 police_court = Blueprint("police_court", __name__)
@@ -41,6 +42,10 @@ SELECT_FIELDS = """
 
 
 @police_court.route("/police-court", methods=["GET"])
+@require_auth(
+    "System Administrator", "Consultant JMO", "Medical Officer Medico-Legal",
+    "Assistant JMO", "Administrative Clerk", "Police Liaison", "Read-Only User"
+)
 def list_records():
     connection = get_connection()
     cursor = connection.cursor()
@@ -49,9 +54,13 @@ def list_records():
         cursor.execute(
             f"""
             SELECT {SELECT_FIELDS}
-            FROM authority_coordination_record
+            FROM authority_coordination_record acr
+            JOIN forensic_case fc ON fc.case_id = acr.case_id
+            WHERE fc.jmo_office_id = %s
+               OR %s = ANY(%s)
             ORDER BY created_at DESC
-            """
+            """,
+            (g.current_user["officeId"], "System Administrator", g.current_user["roles"]),
         )
         return jsonify([record_to_json(row) for row in cursor.fetchall()])
     finally:
@@ -60,6 +69,10 @@ def list_records():
 
 
 @police_court.route("/police-court", methods=["POST"])
+@require_auth(
+    "System Administrator", "Consultant JMO",
+    "Medical Officer Medico-Legal", "Administrative Clerk"
+)
 def create_record():
     data = request.get_json(silent=True) or {}
     required = {
@@ -82,6 +95,12 @@ def create_record():
     connection = get_connection()
     cursor = connection.cursor()
     try:
+        cursor.execute(
+            "SELECT 1 FROM forensic_case WHERE case_id = %s AND jmo_office_id = %s",
+            (required["caseId"], g.current_user["officeId"]),
+        )
+        if cursor.fetchone() is None and "System Administrator" not in g.current_user["roles"]:
+            return jsonify({"error": "The case is outside your JMO office."}), 403
         cursor.execute(
             f"""
             INSERT INTO authority_coordination_record (
@@ -126,6 +145,10 @@ def create_record():
 
 
 @police_court.route("/police-court/<int:record_id>", methods=["PATCH"])
+@require_auth(
+    "System Administrator", "Consultant JMO",
+    "Medical Officer Medico-Legal", "Administrative Clerk"
+)
 def update_record(record_id):
     data = request.get_json(silent=True) or {}
     status = data.get("status")
@@ -140,9 +163,14 @@ def update_record(record_id):
             UPDATE authority_coordination_record
             SET coordination_status = %s, updated_at = CURRENT_TIMESTAMP
             WHERE coordination_id = %s
+              AND EXISTS (
+                  SELECT 1 FROM forensic_case fc
+                  WHERE fc.case_id = authority_coordination_record.case_id
+                    AND fc.jmo_office_id = %s
+              )
             RETURNING {SELECT_FIELDS}
             """,
-            (status, record_id),
+            (status, record_id, g.current_user["officeId"]),
         )
         row = cursor.fetchone()
         if row is None:

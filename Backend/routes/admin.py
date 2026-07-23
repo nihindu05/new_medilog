@@ -1,66 +1,44 @@
 from flask import Blueprint, jsonify
 
 from database import get_connection
+from security import require_auth
 
 
-admin = Blueprint(
-    "admin",
-    __name__
-)
+admin = Blueprint("admin", __name__)
 
 
 @admin.route("/admin/users", methods=["GET"])
+@require_auth("System Administrator")
 def get_users():
-
-
     connection = get_connection()
-
-    cursor = connection.cursor()
-
-
-    cursor.execute(
-        """
-        SELECT
-            users.user_id,
-            users.full_name,
-            roles.role_name,
-            users.account_status
-
-        FROM users
-
-        JOIN roles
-
-        ON users.role_id = roles.role_id
-
-        ORDER BY users.user_id
-        """
-    )
-
-
-    rows = cursor.fetchall()
-
-
-    users=[]
-
-
-    for row in rows:
-
-        users.append({
-
-            "id":row[0],
-
-            "name":row[1],
-
-            "role":row[2],
-
-            "status":row[3]
-
-        })
-
-
-    cursor.close()
-
-    connection.close()
-
-
-    return jsonify(users)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    ua.user_id,
+                    ua.full_name,
+                    ua.username,
+                    ua.email,
+                    ua.account_status,
+                    COALESCE(string_agg(r.role_name, ', ' ORDER BY r.role_name), '')
+                FROM user_account ua
+                LEFT JOIN user_role ur ON ur.user_id = ua.user_id
+                LEFT JOIN roles r ON r.role_id = ur.role_id
+                GROUP BY ua.user_id
+                ORDER BY ua.user_id
+                """
+            )
+            return jsonify([
+                {
+                    "id": row[0],
+                    "name": row[1],
+                    "username": row[2],
+                    "email": row[3],
+                    "status": row[4],
+                    "role": row[5],
+                }
+                for row in cursor.fetchall()
+            ])
+    finally:
+        connection.close()

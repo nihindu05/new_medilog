@@ -1,4 +1,4 @@
-document.addEventListener(
+﻿document.addEventListener(
     "DOMContentLoaded",
     () => {
 
@@ -112,7 +112,7 @@ document.addEventListener(
 
 
 
-            <a href="Reports.html" class="nav-item">
+            <a href="DocumentsAndReports.html" class="nav-item">
 
                 <i data-lucide="file-check"></i>
 
@@ -124,7 +124,7 @@ document.addEventListener(
 
 
 
-            <a href="Documents.html" class="nav-item">
+            <a href="DocumentsAndReports.html" class="nav-item">
 
                 <i data-lucide="file-text"></i>
 
@@ -136,7 +136,7 @@ document.addEventListener(
 
 
 
-            <a href="Search.html" class="nav-item">
+            <a href="CaseManagement.html" class="nav-item">
 
                 <i data-lucide="search"></i>
 

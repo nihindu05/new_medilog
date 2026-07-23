@@ -5,7 +5,7 @@ const STORAGE_KEY = "fmdis_patients_v1";
 
 const currentUser =
 JSON.parse(
-localStorage.getItem("currentUser")
+sessionStorage.getItem("currentUser")
 );
 
 
@@ -332,18 +332,23 @@ let selectedPatientId = null;
 let isEditMode = false;
 
 function loadRecords() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : null;
-    return Array.isArray(parsed) && parsed.length ? parsed : [...samplePatients];
-  } catch (error) {
-    console.warn("Saved patient/victim records could not be read. Sample records were loaded.", error);
-    return [...samplePatients];
-  }
+  return [];
 }
 
 function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  // Persist through the authenticated API only.
+}
+
+async function refreshPatientsFromApi() {
+  try {
+    records = await window.MedLogsAPI.get("/patients");
+    selectedPatientId = records[0]?.id || null;
+    renderPatientTable();
+    renderRecentRecords();
+    updateStats();
+  } catch (error) {
+    alert(`Patient records could not be loaded: ${error.message}`);
+  }
 }
 
 function pad(number, size = 5) {
@@ -850,7 +855,7 @@ function resetForm() {
       : "Register Deceased Person";
 }
 
-function savePatient(event) {
+async function savePatient(event) {
   event.preventDefault();
 
   const record = getFormData();
@@ -864,6 +869,12 @@ function savePatient(event) {
     return;
   }
 
+  try {
+    await window.MedLogsAPI.post("/patients", record);
+  } catch (error) {
+    alert(`Patient could not be saved: ${error.message}`);
+    return;
+  }
   records = [record, ...records.filter(item => item.id !== record.id)];
   selectedPatientId = record.id;
 
@@ -1322,6 +1333,7 @@ function init() {
   renderRecentRecords();
   updateStats();
   updateTopbarLiveDate();
+  refreshPatientsFromApi();
 }
 
 init();

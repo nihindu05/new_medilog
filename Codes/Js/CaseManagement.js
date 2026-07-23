@@ -1,4 +1,4 @@
-const STORAGE_KEY = "fmdis_cases_v2";
+﻿const STORAGE_KEY = "fmdis_cases_v2";
 const PATIENT_STORAGE_KEY = "fmdis_patients_v1";
 const EXAM_STORAGE_KEY = "fmdis_examinations_v1";
 const EVIDENCE_STORAGE_KEY = "fmdis_evidence_samples_v1";
@@ -92,14 +92,7 @@ let expectedReportsDraft = [];
 let confidentialityFloor = "Normal";
 
 function loadRecords() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const parsed = stored ? JSON.parse(stored) : null;
-    return Array.isArray(parsed) && parsed.length ? parsed : [...sampleCases];
-  } catch (error) {
-    console.warn("Saved records could not be read. Sample records were loaded.", error);
-    return [...sampleCases];
-  }
+  return [];
 }
 
 function renderStats() {
@@ -132,7 +125,21 @@ function renderStats() {
 }
 
 function saveRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  // Persist through the authenticated API only.
+}
+
+async function refreshCasesFromApi() {
+  try {
+    records = await window.MedLogsAPI.get("/cases");
+    selectedCaseId = records[0]?.id || null;
+    renderPreview();
+    renderLinkedRecords();
+    renderRecentRecords();
+    renderCaseTable();
+    renderStats();
+  } catch (error) {
+    alert(`Case records could not be loaded: ${error.message}`);
+  }
 }
 
 function pad(number, size = 6) {
@@ -290,11 +297,11 @@ function renderPersonSearchResults(matches) {
     ? matches.slice(0, 8).map(patient => `
         <button type="button" data-person-result="${patient.id}"
           style="display:block; width:100%; text-align:left; padding:9px 12px; border:none; border-bottom:1px solid #eef1f6; background:none; cursor:pointer; font:inherit;">
-          <strong>${patient.id}</strong> — ${patient.fullName || "Unnamed"}<br>
+          <strong>${patient.id}</strong> â€” ${patient.fullName || "Unnamed"}<br>
           <small style="color:#667;">
             ${patient.nicPassportNo ? "NIC: " + patient.nicPassportNo : "NIC not recorded"}
-            ${patient.age ? " • " + patient.age + " yrs" : ""}
-            ${patient.gender ? " • " + patient.gender : ""}
+            ${patient.age ? " â€¢ " + patient.age + " yrs" : ""}
+            ${patient.gender ? " â€¢ " + patient.gender : ""}
           </small>
         </button>
       `).join("")
@@ -828,7 +835,7 @@ function resetForm() {
   applyRolePermissions();
 }
 
-function saveCase(event) {
+async function saveCase(event) {
   event.preventDefault();
   const record = getFormData();
 
@@ -846,6 +853,12 @@ function saveCase(event) {
     return;
   }
 
+  try {
+    await window.MedLogsAPI.post("/cases", record);
+  } catch (error) {
+    alert(`Case could not be saved: ${error.message}`);
+    return;
+  }
   records = [record, ...records.filter(item => item.id !== record.id)];
   selectedCaseId = record.id;
   saveRecords();
@@ -870,7 +883,7 @@ function renderPreview(optionalRecord) {
   if (!dom.casePreview) return;
   const record = optionalRecord || records.find(item => item.id === selectedCaseId) || records[0];
   if (!record) {
-    dom.casePreview.innerHTML = `<div class="preview-empty"><div><span>▣</span><h4>No case selected</h4><p>Select or save a case to preview details.</p></div></div>`;
+    dom.casePreview.innerHTML = `<div class="preview-empty"><div><span>â–£</span><h4>No case selected</h4><p>Select or save a case to preview details.</p></div></div>`;
     return;
   }
 
@@ -882,7 +895,7 @@ function renderPreview(optionalRecord) {
   dom.casePreview.innerHTML = `
     <div class="preview-head">
       <div>
-        <div class="case-avatar">${isClinical ? "☤" : "✎"}</div>
+        <div class="case-avatar">${isClinical ? "â˜¤" : "âœŽ"}</div>
         <div class="preview-chip-row"><span class="badge ${isClinical ? "success" : "warn"}">${isClinical ? "CLINICAL" : "AUTOPSY"}</span></div>
       </div>
       <div>
@@ -1084,7 +1097,7 @@ function populateFullCaseDetails(caseId) {
       caseDocs.map(doc => `
         <div class="case-mini-item">
           <strong>${display(doc.label)}</strong>
-          <small>${display(doc.fileName)} • ${display(doc.status)} • ${formatDate(doc.uploadedAt)}</small>
+          <small>${display(doc.fileName)} â€¢ ${display(doc.status)} â€¢ ${formatDate(doc.uploadedAt)}</small>
         </div>
       `),
       "No case documents uploaded yet."
@@ -1097,7 +1110,7 @@ function populateFullCaseDetails(caseId) {
       (record.expectedReports || []).map(report => `
         <div class="case-mini-item">
           <strong>${display(report.reportType)}</strong>
-          <small>Due: ${display(report.dueDate)} • Priority: ${display(report.priority)} • Status: ${display(report.status)}</small>
+          <small>Due: ${display(report.dueDate)} â€¢ Priority: ${display(report.priority)} â€¢ Status: ${display(report.status)}</small>
         </div>
       `),
       "No expected reports added."
@@ -1110,8 +1123,8 @@ function populateFullCaseDetails(caseId) {
     examContainer.innerHTML = miniList(
       exams.map(exam => `
         <div class="case-mini-item">
-          <strong>${display(exam.id)} • ${display(exam.examType)}</strong>
-          <small>${display(exam.status)} • ${formatDate(exam.examDateTime)}</small>
+          <strong>${display(exam.id)} â€¢ ${display(exam.examType)}</strong>
+          <small>${display(exam.status)} â€¢ ${formatDate(exam.examDateTime)}</small>
         </div>
       `),
       "No linked examinations yet."
@@ -1126,7 +1139,7 @@ function populateFullCaseDetails(caseId) {
     evidenceContainer.innerHTML = `
       <div class="case-mini-item">
         <strong>${evidence.length} evidence / sample records</strong>
-        <small>${labPending} lab pending • ${evidence.filter(item => item.sampleStatus === "Sealed" || item.sampleStatus === "Stored").length} sealed/stored</small>
+        <small>${labPending} lab pending â€¢ ${evidence.filter(item => item.sampleStatus === "Sealed" || item.sampleStatus === "Stored").length} sealed/stored</small>
       </div>
     `;
   }
@@ -1137,8 +1150,8 @@ function populateFullCaseDetails(caseId) {
     reportContainer.innerHTML = miniList(
       reports.map(report => `
         <div class="case-mini-item">
-          <strong>${display(report.id)} • ${display(report.reportType)}</strong>
-          <small>${display(report.reportStatus)} • ${formatDate(report.issueDate)}</small>
+          <strong>${display(report.id)} â€¢ ${display(report.reportType)}</strong>
+          <small>${display(report.reportStatus)} â€¢ ${formatDate(report.issueDate)}</small>
         </div>
       `),
       "No generated reports yet."
@@ -1180,7 +1193,7 @@ function quickSearchPreview() {
     renderPreview();
     renderLinkedRecords();
   } else {
-    dom.casePreview.innerHTML = `<div class="preview-empty"><div><span>⌕</span><h4>No result found</h4><p>Try another Case ID, patient name, police or court reference.</p></div></div>`;
+    dom.casePreview.innerHTML = `<div class="preview-empty"><div><span>âŒ•</span><h4>No result found</h4><p>Try another Case ID, patient name, police or court reference.</p></div></div>`;
   }
 }
 function goToExaminationFromCase() {
@@ -1227,12 +1240,12 @@ function goToReportFromCase() {
     const continueAnyway = confirm("No examination found for this case yet. Report can only be drafted after examination findings. Open Report Generation anyway?");
     if (!continueAnyway) return;
 
-    window.location.href = `ReportGeneration.html?caseId=${encodeURIComponent(selectedCaseId)}`;
+    window.location.href = `DocumentsAndReports.html?caseId=${encodeURIComponent(selectedCaseId)}`;
     return;
   }
 
   window.location.href =
-    `ReportGeneration.html?caseId=${encodeURIComponent(selectedCaseId)}&examId=${encodeURIComponent(exam.id)}`;
+    `DocumentsAndReports.html?caseId=${encodeURIComponent(selectedCaseId)}&examId=${encodeURIComponent(exam.id)}`;
 }
 
 function initFromUrl() {
@@ -1455,7 +1468,7 @@ function populateFormForEditing(caseId) {
 
   isEditMode = true;
 
-  // Switch tab and case type first — this resets IDs, sections and expected reports,
+  // Switch tab and case type first â€” this resets IDs, sections and expected reports,
   // so all record values must be written AFTER these calls.
   activateTab("registration");
   activateCaseType("registration", record.type);
@@ -1598,6 +1611,7 @@ function init() {
   renderStats();
   applyRolePermissions();
   initFromUrl();
+  refreshCasesFromApi();
 }
 
 init();

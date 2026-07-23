@@ -1,4 +1,4 @@
-const STORAGE_KEY = "fmdis_evidence_samples_v1";
+﻿const STORAGE_KEY = "fmdis_evidence_samples_v1";
 const EXAM_STORAGE_KEY = "fmdis_examinations_v1";
 const CASE_STORAGE_KEY = "fmdis_cases_v2";
 
@@ -414,7 +414,7 @@ function populateExaminationSelect(filter = "") {
     <option value="">Select examination</option>
     ${filtered.map(exam => `
       <option value="${exam.id}">
-        ${exam.id} • ${exam.caseId} • ${display(exam.patientName)} • ${typeLabel(exam.caseType)}
+        ${exam.id} â€¢ ${exam.caseId} â€¢ ${display(exam.patientName)} â€¢ ${typeLabel(exam.caseType)}
       </option>
     `).join("")}
   `;
@@ -424,7 +424,7 @@ function renderSourceSummary(exam) {
   if (!exam) {
     dom.sourceSummaryPanel.innerHTML = `
       <div class="preview-empty compact-empty">
-        <div><span>⌕</span><h4>No examination selected</h4><p>Select a completed or draft examination to register collected evidence.</p></div>
+        <div><span>âŒ•</span><h4>No examination selected</h4><p>Select a completed or draft examination to register collected evidence.</p></div>
       </div>
     `;
     return;
@@ -440,7 +440,7 @@ function renderSourceSummary(exam) {
         <span class="badge ${exam.caseType === "clinical" ? "success" : "warn"}">${typeLabel(exam.caseType)}</span>
         <span class="badge ${statusClass(exam.status)}">${display(exam.status)}</span>
       </div>
-      <div class="summary-cell"><small>Case / Patient</small><span>${display(exam.caseId)}<br>${display(exam.patientName)} • ${display(exam.patientId)}</span></div>
+      <div class="summary-cell"><small>Case / Patient</small><span>${display(exam.caseId)}<br>${display(exam.patientName)} â€¢ ${display(exam.patientId)}</span></div>
       <div class="summary-cell"><small>Category</small><span>${display(exam.caseCategory || caseRecord?.category)}</span></div>
       <div class="summary-cell"><small>Doctor</small><span>${display(exam.primaryDoctor)}</span></div>
       <div class="summary-cell"><small>Reference</small><span>${display(mainReference(caseRecord))}</span></div>
@@ -574,7 +574,7 @@ function renderCustodyTable() {
     <tr>
       <td>${index + 1}</td>
       <td><strong>${display(event.actionType)}</strong><br><small>${display(event.location)}</small></td>
-      <td>${display(event.fromUser)}<br><small>→ ${display(event.toUser)}</small></td>
+      <td>${display(event.fromUser)}<br><small>â†’ ${display(event.toUser)}</small></td>
       <td>${formatDate(event.transferDateTime)}</td>
       <td><span class="badge ${event.sealStatus === "Broken" ? "danger" : "success"}">${display(event.sealStatus)}</span></td>
       <td><button class="table-action" type="button" data-delete-custody="${event.id}">Delete</button></td>
@@ -726,7 +726,7 @@ function renderEvidenceTable() {
   dom.evidenceTableBody.innerHTML = data.map(record => `
     <tr>
       <td><strong>${record.id}</strong></td>
-      <td>${display(record.caseId)}<br><small>${display(record.examId)} • ${display(record.patientName)}</small></td>
+      <td>${display(record.caseId)}<br><small>${display(record.examId)} â€¢ ${display(record.patientName)}</small></td>
       <td>${display(record.sampleType)}<br><small>${display(record.evidenceCategory)}</small></td>
       <td>${display(record.sealNo)}</td>
       <td><span class="badge ${statusClass(record.sampleStatus)}">${display(record.sampleStatus)}</span></td>
@@ -766,8 +766,8 @@ function renderCustodyTimeline(record) {
 
   return events.map((event, index) => `
     <div class="custody-step" data-step="${index + 1}">
-      <strong>${display(event.actionType)} • ${display(event.sealStatus)}</strong>
-      <small>${display(event.fromUser)} → ${display(event.toUser)} • ${formatDate(event.transferDateTime)}</small>
+      <strong>${display(event.actionType)} â€¢ ${display(event.sealStatus)}</strong>
+      <small>${display(event.fromUser)} â†’ ${display(event.toUser)} â€¢ ${formatDate(event.transferDateTime)}</small>
       <small>Location: ${display(event.location)}</small>
       <p>${display(event.remarks)}</p>
     </div>
@@ -789,7 +789,7 @@ function populateFullEvidenceDetails(recordId) {
   document.getElementById("detHeaderType").className = `badge ${record.caseType === "clinical" ? "success" : "warn"}`;
   document.getElementById("detHeaderStatus").textContent = display(record.sampleStatus);
   document.getElementById("detHeaderStatus").className = `badge ${statusClass(record.sampleStatus)}`;
-  document.getElementById("detHeaderCasePatient").textContent = `Case: ${display(record.caseId)} • ${display(record.patientName)}`;
+  document.getElementById("detHeaderCasePatient").textContent = `Case: ${display(record.caseId)} â€¢ ${display(record.patientName)}`;
   document.getElementById("detHeaderSeal").textContent = `Seal: ${display(record.sealNo)}`;
   document.getElementById("detHeaderCustody").textContent = `${record.custodyEvents?.length || 0} custody events`;
 
@@ -877,12 +877,12 @@ function populateFormForEditing(recordId) {
 
 function goToLab(record) {
   if (!record) return;
-  window.location.href = `LabToxicology.html?caseId=${encodeURIComponent(record.caseId)}&examId=${encodeURIComponent(record.examId)}&sampleId=${encodeURIComponent(record.id)}`;
+  window.location.href = `LabTest_Toxicology.html?caseId=${encodeURIComponent(record.caseId)}&examId=${encodeURIComponent(record.examId)}&sampleId=${encodeURIComponent(record.id)}`;
 }
 
 function goToDocuments(record) {
   if (!record) return;
-  window.location.href = `Documents.html?caseId=${encodeURIComponent(record.caseId)}&examId=${encodeURIComponent(record.examId)}&sampleId=${encodeURIComponent(record.id)}`;
+  window.location.href = `DocumentsAndReports.html?caseId=${encodeURIComponent(record.caseId)}&examId=${encodeURIComponent(record.examId)}&sampleId=${encodeURIComponent(record.id)}`;
 }
 
 function bindEvents() {

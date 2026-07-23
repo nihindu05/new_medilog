@@ -822,53 +822,47 @@ async function loginUser(){
 
 
 
-    const response =
-    await fetch(
-        "http://127.0.0.1:5000/api/login",
-        {
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/json"
-            },
-
-            body:JSON.stringify({
-
-                username:username,
-
-                password:password
-
-            })
-
-        }
-    );
-
-
-    const result =
-    await response.json();
+    let result;
+    try {
+        result = await window.MedLogsAPI.post("/login", {
+            username,
+            password
+        });
+    } catch (error) {
+        alert(error.message);
+        return;
+    }
 
 
 
     if(result.success){
 
-        localStorage.setItem(
-            "user",
-            JSON.stringify(result.user)
-        );
+        window.MedLogsAPI.setSession({
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            expiresIn: result.expiresIn,
+            user: result.user
+        });
 
 
-        if(result.user.role==="Admin"){
+        if(result.user.roles.includes("System Administrator")){
 
             window.location.href=
             "AdminDashboard.html";
 
         }
 
-        else if(result.user.role==="Consultant JMO"){
+        else if(result.user.roles.includes("Consultant JMO")){
 
             window.location.href=
             "JMODashboard.html";
 
+        } else if(result.user.roles.includes("Laboratory Staff")){
+            window.location.href = "LabDashboard.html";
+        } else if(result.user.roles.includes("Assistant JMO")){
+            window.location.href = "AssistantJMODashboard.html";
+        } else {
+            window.location.href = "DoctorDashboard.html";
         }
 
 
