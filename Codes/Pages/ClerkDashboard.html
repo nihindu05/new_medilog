@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clerk Dashboard | MedLogs</title>
+  <link rel="stylesheet" href="../css/AdminDashboard.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="dashboard-container">
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="brand-icon"><i data-lucide="shield-plus"></i></div>
+        <div><h2>MedLogs</h2><p>Management System</p></div>
+      </div>
+      <nav>
+        <a class="nav-item active" href="ClerkDashboard.html"><i data-lucide="layout-dashboard"></i>Dashboard</a>
+        <a class="nav-item" href="PatientManagement.html"><i data-lucide="users"></i>Patient Management</a>
+        <a class="nav-item" href="CaseManagement.html"><i data-lucide="folder-open"></i>Case Management</a>
+        <a class="nav-item" href="PoliceCourt.html"><i data-lucide="landmark"></i>Police &amp; Court</a>
+        <a class="nav-item" href="DocumentsAndReports.html"><i data-lucide="file-text"></i>Documents &amp; Reports</a>
+      </nav>
+    </div>
+    <div class="logout" id="logoutBtn"><i data-lucide="log-out"></i>Logout</div>
+  </aside>
 
+  <main class="main-content">
+    <header class="top-header">
+      <div>
+        <h1>Clerk Dashboard</h1>
+        <p>Register patients, manage cases, and organize documents</p>
+      </div>
+      <div class="profile">
+        <div class="profile-icon"><i data-lucide="user"></i></div>
+        <div><h3 id="clerkName">Clerk</h3><span>ADMINISTRATIVE CLERK</span></div>
+      </div>
+    </header>
+
+    <section class="cards">
+      <div class="card">
+        <i data-lucide="users"></i>
+        <div><h2 id="patientCount">0</h2><p>Total Patients</p></div>
+      </div>
+      <div class="card purple">
+        <i data-lucide="folder"></i>
+        <div><h2 id="caseCount">0</h2><p>Total Cases</p></div>
+      </div>
+      <div class="card orange">
+        <i data-lucide="clock"></i>
+        <div><h2 id="pendingCaseCount">0</h2><p>Open Cases</p></div>
+      </div>
+      <div class="card green">
+        <i data-lucide="check-circle"></i>
+        <div><h2 id="completedCaseCount">0</h2><p>Completed Cases</p></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header"><h2>Clerk Operations</h2></div>
+      <div class="cards">
+        <a class="card" href="PatientManagement.html">
+          <i data-lucide="user-plus"></i><div><h3>Register Patient</h3><p>Create or review patient records</p></div>
+        </a>
+        <a class="card" href="CaseManagement.html">
+          <i data-lucide="folder-plus"></i><div><h3>Register Case</h3><p>Create and maintain case details</p></div>
+        </a>
+        <a class="card" href="PoliceCourt.html">
+          <i data-lucide="landmark"></i><div><h3>Police &amp; Court</h3><p>Manage legal referral information</p></div>
+        </a>
+        <a class="card" href="DocumentsAndReports.html">
+          <i data-lucide="files"></i><div><h3>Documents</h3><p>Upload and organize case documents</p></div>
+        </a>
+      </div>
+      <p id="dashboardMessage" role="alert"></p>
+    </section>
+  </main>
+</div>
+<script src="../Js/apiClient.js"></script>
+<script src="../Js/ClerkDashboard.js?v=1"></script>
+</body>
+</html>

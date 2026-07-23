@@ -36,14 +36,19 @@ document.addEventListener(
 
 
 
-        const doctorRoles = [
-            "DOCTOR",
-            "Medical Officer Medico-Legal",
-            "Assistant JMO",
-            "Consultant JMO"
-        ];
+        const roleAliases = {
+            "System Administrator": "ADMIN",
+            "Consultant JMO": "JMO",
+            "Medical Officer Medico-Legal": "DOCTOR",
+            "Assistant JMO": "ASSISTANT_JMO",
+            "Administrative Clerk": "CLERK",
+            "Laboratory Staff": "LAB",
+            "Police Liaison": "POLICE"
+        };
+        const currentRole = roleAliases[user?.role] || user?.role;
+        const doctorRoles = ["DOCTOR", "ASSISTANT_JMO", "JMO"];
 
-        if (!user || !doctorRoles.includes(user.role)) {
+        if (!user || !doctorRoles.includes(currentRole)) {
 
 
 
@@ -107,44 +112,13 @@ document.addEventListener(
 
         // ============================
 
-// ROLE BASED SIDEBAR CONTROL
-
-// ============================
-
-
-
-const navItems =
-document.querySelectorAll(".nav-item");
-
-
-navItems.forEach(item=>{
-
-
-    const roles = item.dataset.roles;
-
-
-    if(!roles) return;
-
-
-    const allowedRoles =
-    roles.split(",");
-
-
-    if(!allowedRoles.includes(user.role)){
-
-
-        item.style.pointerEvents = "none";
-
-        item.style.opacity = "0.45";
-
-        item.style.cursor = "not-allowed";
-
-        item.title = "Access denied";
-
-
-    }
-
-
+// The sidebar remains navigable for authenticated medical staff.
+// API authorization is enforced by the backend for protected data.
+document.querySelectorAll(".nav-item").forEach(item => {
+    item.style.pointerEvents = "auto";
+    item.style.opacity = "1";
+    item.style.cursor = "pointer";
+    item.removeAttribute("title");
 });
         
 

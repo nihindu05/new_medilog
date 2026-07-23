@@ -1,45 +1,11 @@
 const STORAGE_KEY = "fmdis_patients_v1";
-// ============================
-// ROLE BASED SIDEBAR CONTROL
-// ============================
-
-const currentUser =
-JSON.parse(
-sessionStorage.getItem("currentUser")
-);
-
-
-if(currentUser){
-
-document.querySelectorAll(".nav-item")
-.forEach(item=>{
-
-
-const roles = item.dataset.roles;
-
-
-if(!roles) return;
-
-
-if(!roles.split(",").includes(currentUser.role)){
-
-
-item.style.pointerEvents = "none";
-
-item.style.opacity = "0.45";
-
-item.style.cursor = "not-allowed";
-
-item.title = "Access denied";
-
-
-}
-
-
+// Keep module navigation usable; protected API operations enforce permissions.
+document.querySelectorAll(".nav-item").forEach(item => {
+  item.style.pointerEvents = "auto";
+  item.style.opacity = "1";
+  item.style.cursor = "pointer";
+  item.removeAttribute("title");
 });
-
-
-}
 const CASE_STORAGE_KEY = "fmdis_cases_v2";
 const samplePatients = [
   {
