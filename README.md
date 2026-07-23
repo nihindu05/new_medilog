@@ -1,7 +1,7 @@
 
 
 ````md
-# 🩺 MedLogs — Forensic Medicine Department Information System
+#MedLogs — Forensic Medicine Department Information System
 
 <div align="center">
 
@@ -21,7 +21,7 @@ MedLogs is a forensic medicine database management system designed to digitize a
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
 **MedLogs** is a web-based information system developed for a **Forensic Medicine Department / JMO Office**.
 
@@ -46,7 +46,7 @@ MedLogs aims to solve these problems by providing a centralized digital platform
 
 ---
 
-## 🎯 Main Objective
+## Main Objective
 
 The main objective of this project is to create a secure, reliable, and user-friendly database system that supports the complete medico-legal workflow of a forensic medicine department.
 
@@ -60,7 +60,7 @@ Examination Page  = What did the doctor find?
 
 ---
 
-## 🧭 System Workflow
+## System Workflow
 
 ```text
 Login
@@ -88,7 +88,7 @@ Audit Logs / Statistics
 
 ---
 
-## 🏥 Core Modules
+## Core Modules
 
 ### 1. Patient / Victim Management
 
@@ -301,7 +301,7 @@ Amended, if required
 
 ---
 
-## 🔐 Security Features
+## Security Features
 
 MedLogs is designed for highly sensitive medico-legal data. Therefore, security is a core part of the project.
 
@@ -329,7 +329,7 @@ MedLogs is designed for highly sensitive medico-legal data. Therefore, security 
 
 ---
 
-## 👥 User Roles
+## User Roles
 
 | Role                          | Main Responsibilities                                     |
 | ----------------------------- | --------------------------------------------------------- |
@@ -381,7 +381,7 @@ AUDIT_LOG
 
 ---
 
-## 🧩 Current Completed Pages
+## Current Completed Pages
 
 | Page                        | Status                  |
 | --------------------------- | ----------------------- |
@@ -399,7 +399,7 @@ AUDIT_LOG
 
 ---
 
-## 🖥️ Frontend Pages
+## Frontend Pages
 
 Current page structure:
 
@@ -430,7 +430,7 @@ Codes/
 
 ---
 
-## 🔗 Page Connection Logic
+## Page Connection Logic
 
 The website uses IDs to move between pages.
 
@@ -452,7 +452,7 @@ This prevents duplicate data entry and keeps the system connected.
 
 ---
 
-## 💾 Demo Data Storage
+## Demo Data Storage
 
 Currently, the frontend demo uses `localStorage`.
 
@@ -486,7 +486,7 @@ POST   /api/reports
 
 ---
 
-## ⚙️ Technologies Used
+## Technologies Used
 
 ### Current Frontend
 
@@ -514,7 +514,7 @@ POST   /api/reports
 
 ---
 
-## 🚀 How to Run the Project
+## How to Run the Project
 
 ### 1. Clone the repository
 
@@ -544,7 +544,7 @@ https://navodap.github.io/MedLogs/Codes/Pages/CaseManagement.html
 
 ---
 
-## 🌐 Deployment Notes
+## Deployment Notes
 
 If CSS or JavaScript does not load on GitHub Pages, check file paths carefully.
 
@@ -568,7 +568,7 @@ Use the exact folder name used in the project.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 Add screenshots here after final UI testing.
 
@@ -581,7 +581,7 @@ Add screenshots here after final UI testing.
 
 ---
 
-## 🧠 Why This Project Is Important
+## Why This Project Is Important
 
 Forensic medicine records are not ordinary hospital records. They are medical, legal, and evidential documents.
 
@@ -600,7 +600,7 @@ MedLogs improves the manual system by reducing paper dependency, improving searc
 
 ---
 
-## 🛣️ Future Improvements
+## Future Improvements
 
 * Backend API integration
 * MySQL database connection
@@ -620,7 +620,7 @@ MedLogs improves the manual system by reducing paper dependency, improving searc
 
 ---
 
-## 👨‍💻 Development Team
+## Development Team
 
 This project is developed as part of the **CO2050 Database Systems Mini Project**.
 
@@ -630,7 +630,7 @@ This project is developed as part of the **CO2050 Database Systems Mini Project*
 
 ---
 
-## 📜 License
+## License
 
 This project is developed for academic purposes.
 
