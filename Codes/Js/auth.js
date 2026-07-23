@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-
     /*
     =====================================
         SHOW / HIDE PASSWORD
@@ -101,7 +100,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         }
     );
-
 
 
 
@@ -198,10 +196,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+
         clearAllErrors();
 
         hideStatus();
-
 
 
 
@@ -320,11 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-
         setLoadingState(true);
-
-
-
 
 
 
@@ -332,105 +326,32 @@ document.addEventListener("DOMContentLoaded", () => {
         try{
 
 
-
-            // fake loading delay
-
-            await new Promise(
-                resolve =>
-                setTimeout(resolve,1000)
-            );
-
-
-
-
-
-
-
-
             /*
             =====================================
-                FIND USER FROM users.js
+                REAL LOGIN VIA BACKEND API
             =====================================
             */
 
 
-            const user =
-            users.find(
-
-                account =>
-
-                account.username === username &&
-
-                account.password === password
-
+            const result =
+            await window.MedLogsAPI.post(
+                "/login",
+                { username, password }
             );
 
 
-
-
-
-
-
-            if(!user){
-
-
-                throw new Error(
-                    "Invalid username or password."
-                );
-
-
-            }
-
-
-
-
-
-
-
-
-            /*
-            =====================================
-                SAVE LOGIN USER
-            =====================================
-            */
-
-
-            localStorage.setItem(
-
-                "currentUser",
-
-                JSON.stringify(user)
-
-            );
-
-
-
-
-
+            window.MedLogsAPI.setSession({
+                accessToken: result.accessToken,
+                refreshToken: result.refreshToken,
+                expiresIn: result.expiresIn,
+                user: result.user,
+            });
 
 
             showStatus(
-
-            `Login successful. Welcome ${user.name}.`,
-
-            "success"
-
+                `Login successful. Welcome ${result.user.name}.`,
+                "success"
             );
-
-
-
-
-
-
-
-            console.log(
-                "Logged user:",
-                user
-            );
-
-
-
-
 
 
 
@@ -445,174 +366,89 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(()=>{
 
 
-
-                switch(user.role){
-
+                switch(result.user.role){
 
 
-                    case "ADMIN":
-
+                    case "System Administrator":
 
                         window.location.href =
                         "AdminDashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
-                    case "JMO":
-
+                    case "Consultant JMO":
 
                         window.location.href =
                         "JMODashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
-                    case "ASSISTANT_JMO":
-
+                    case "Assistant JMO":
 
                         window.location.href =
                         "AssistantJMODashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
-                    case "DOCTOR":
-
+                    case "Medical Officer Medico-Legal":
 
                         window.location.href =
                         "DoctorDashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
-                    case "LAB":
-
+                    case "Laboratory Staff":
 
                         window.location.href =
                         "LabDashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
-                    case "CLERK":
-
+                    case "Administrative Clerk":
 
                         window.location.href =
                         "ClerkDashboard.html";
 
-
                         break;
 
 
-
-
-
-
-
                     default:
-
 
                         alert(
                         "No dashboard assigned."
                         );
 
-
-
                 }
-
-
 
 
             },1000);
 
 
-
-
-
-
-
         }
-
-
 
         catch(error){
 
-
-
             showStatus(
-
                 error.message ||
-
-                "Login failed."
-
-            ,
-
-            "error"
-
+                "Login failed.",
+                "error"
             );
 
-
-
         }
-
-
-
-
-
 
         finally{
 
-
             setLoadingState(false);
-
 
         }
 
 
-
-
-
     });
-
-
-
-
-
-
-
-
-
 
 
 
@@ -643,9 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
         message;
 
 
-
     }
-
 
 
 
@@ -724,11 +558,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-
     function hideStatus(){
 
 
         formStatus.textContent="";
+
 
 
         formStatus.className =
@@ -736,8 +570,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     }
-
-
 
 
 
@@ -752,7 +584,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         loginButton.disabled =
         loading;
-
 
 
 
@@ -788,96 +619,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-
-
     }
-
-
-
 
 
 });
-
-document
-.getElementById("loginForm")
-.addEventListener(
-    "submit",
-    function(event){
-
-        event.preventDefault();
-
-        loginUser();
-
-    }
-);
-
-async function loginUser(){
-
-    const username =
-    document.getElementById("username").value;
-
-
-    const password =
-    document.getElementById("password").value;
-
-
-
-    const response =
-    await fetch(
-        "http://127.0.0.1:5000/api/login",
-        {
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/json"
-            },
-
-            body:JSON.stringify({
-
-                username:username,
-
-                password:password
-
-            })
-
-        }
-    );
-
-
-    const result =
-    await response.json();
-
-
-
-    if(result.success){
-
-        localStorage.setItem(
-            "user",
-            JSON.stringify(result.user)
-        );
-
-
-        if(result.user.role==="Admin"){
-
-            window.location.href=
-            "AdminDashboard.html";
-
-        }
-
-        else if(result.user.role==="Consultant JMO"){
-
-            window.location.href=
-            "JMODashboard.html";
-
-        }
-
-
-    }
-
-    else{
-
-        alert(result.message);
-
-    }
-
-}
