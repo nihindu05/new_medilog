@@ -13,8 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ASSISTANT_JMO: "AJ",
     DOCTOR: "D",
     LAB: "L",
-    CLERK: "C",
-    POLICE: "P"
+    CLERK: "C"
   };
 
   roleSelect.addEventListener("change", () => {
