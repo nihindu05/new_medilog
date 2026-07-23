@@ -135,3 +135,30 @@ def refresh():
         return jsonify({"message": "Session refresh failed."}), 401
     except (ConnectionError, RuntimeError) as error:
         return jsonify({"message": str(error)}), 503
+
+
+@auth.route("/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    access_token = str(data.get("accessToken") or "").strip()
+    password = str(data.get("password") or "")
+
+    if not access_token or len(password) < 8:
+        return jsonify({
+            "message": "A valid recovery link and a password of at least 8 characters are required."
+        }), 400
+
+    try:
+        _supabase_request(
+            "/auth/v1/user",
+            method="PUT",
+            payload={"password": password},
+            token=access_token,
+        )
+        return jsonify({"success": True, "message": "Password updated successfully."})
+    except ValueError:
+        return jsonify({
+            "message": "This recovery link is invalid or has expired. Request a new recovery email."
+        }), 401
+    except (ConnectionError, RuntimeError) as error:
+        return jsonify({"message": str(error)}), 503

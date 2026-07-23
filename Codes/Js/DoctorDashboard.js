@@ -36,7 +36,14 @@ document.addEventListener(
 
 
 
-        if (!user || user.role !== "DOCTOR") {
+        const doctorRoles = [
+            "DOCTOR",
+            "Medical Officer Medico-Legal",
+            "Assistant JMO",
+            "Consultant JMO"
+        ];
+
+        if (!user || !doctorRoles.includes(user.role)) {
 
 
 
@@ -641,6 +648,12 @@ navItems.forEach(item=>{
 
         }
 
+function openCase(caseId){
+    window.location.href =
+        `CaseManagement.html?caseId=${encodeURIComponent(caseId)}`;
+}
 
 updateStats();
 loadCases();
+    }
+);

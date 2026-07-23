@@ -1,25 +1,14 @@
 document.addEventListener("DOMContentLoaded", async () => {
   lucide.createIcons();
-
-  const table = document.getElementById("adminUsersTable");
+  const table = document.getElementById("usersTable");
   const escapeHtml = value => String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-
   try {
-    const [stats, users] = await Promise.all([
-      window.MedLogsAPI.get("/admin/stats"),
-      window.MedLogsAPI.get("/admin/users")
-    ]);
-
-    document.getElementById("totalUsers").textContent = stats.totalUsers;
-    document.getElementById("activeStaff").textContent = stats.activeStaff;
-    document.getElementById("totalCases").textContent = stats.totalCases;
-    document.getElementById("pendingReviews").textContent = stats.pendingReviews;
-
+    const users = await window.MedLogsAPI.get("/admin/users");
     table.innerHTML = users.length
       ? users.map(user => `
           <tr>
@@ -29,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             <td><span class="${user.status === "Active" ? "active-status" : ""}">
               ${escapeHtml(user.status)}
             </span></td>
-            <td><a class="view-btn" href="UserManagement.html">View</a></td>
+            <td><button class="view-btn" type="button" data-user-id="${user.id}">View</button></td>
           </tr>
         `).join("")
       : '<tr><td colspan="5">No user accounts found.</td></tr>';

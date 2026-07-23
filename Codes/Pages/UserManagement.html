@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management | MedLogs</title>
+  <link rel="stylesheet" href="../css/AdminDashboard.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="dashboard-container">
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="brand-icon"><i data-lucide="shield-plus"></i></div>
+        <div><h2>Forensic Medical</h2><p>Management System</p></div>
+      </div>
+      <nav>
+        <a class="nav-item" href="AdminDashboard.html"><i data-lucide="layout-dashboard"></i>Dashboard</a>
+        <a class="nav-item active" href="UserManagement.html"><i data-lucide="users"></i>User Management</a>
+        <a class="nav-item" href="CreateUser.html"><i data-lucide="user-plus"></i>Create User</a>
+        <a class="nav-item" href="CaseManagement.html"><i data-lucide="folder-open"></i>Cases</a>
+        <a class="nav-item" href="DocumentsAndReports.html"><i data-lucide="file-text"></i>Reports</a>
+        <a class="nav-item" href="EvidenceSamples.html"><i data-lucide="database"></i>Evidence</a>
+        <a class="nav-item" href="Settings.html"><i data-lucide="settings"></i>Settings</a>
+      </nav>
+    </div>
+    <div class="logout" onclick="window.MedLogsAPI.clearSession(); location.href='auth.html';">
+      <i data-lucide="log-out"></i>Logout
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div><h1>User Management</h1><p>View and manage system user accounts</p></div>
+      <div class="profile">
+        <div class="profile-icon"><i data-lucide="user"></i></div>
+        <div><h3>System Administrator</h3><span>ADMIN</span></div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header"><h2>Staff Accounts</h2></div>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="usersTable">
+          <tr><td colspan="5">Loading users…</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+<script src="../Js/apiClient.js"></script>
+<script src="../Js/UserManagement.js"></script>
+</body>
+</html>
