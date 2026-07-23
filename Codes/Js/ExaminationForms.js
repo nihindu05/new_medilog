@@ -335,7 +335,7 @@ const dom = {
 };
 
 let caseRecords = loadCaseRecords();
-let examinations = loadExaminations();
+let examinations = [];
 let selectedCase = null;
 let selectedExamId = null;
 let currentEntryType = "clinical";
@@ -986,7 +986,7 @@ function getFormData(statusOverride) {
   return record;
 }
 
-function saveExamination(statusOverride) {
+async function saveExamination(statusOverride) {
   const record = getFormData(statusOverride);
   const missing = validateRecord(record, statusOverride);
 
@@ -998,7 +998,18 @@ function saveExamination(statusOverride) {
     return;
   }
 
-  examinations = [record, ...examinations.filter(item => item.id !== record.id)];
+  try {
+    const saved = await window.MedLogsAPI.post("/examinations", record);
+    record.databaseId = saved.databaseId;
+    record.id = saved.id || record.id;
+  } catch (error) {
+    alert(`Examination could not be saved: ${error.message}`);
+    return;
+  }
+
+  examinations = [record, ...examinations.filter(item =>
+    item.databaseId !== record.databaseId && item.id !== record.id
+  )];
   selectedExamId = record.id;
 
   saveExaminations();
@@ -1487,8 +1498,17 @@ function readCaseIdFromUrl() {
   return params.get("caseId");
 }
 
-function init() {
+async function init() {
   bindEvents();
+  try {
+    [caseRecords, examinations] = await Promise.all([
+      window.MedLogsAPI.get("/cases"),
+      window.MedLogsAPI.get("/examinations")
+    ]);
+  } catch (error) {
+    alert(`Examination data could not be loaded: ${error.message}`);
+    examinations = loadExaminations();
+  }
   populateCaseSelect();
   setInitialFormValues();
   setDiagramView("front");

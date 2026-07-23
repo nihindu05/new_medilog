@@ -13,34 +13,36 @@ document.addEventListener("DOMContentLoaded", () => {
     "Police Liaison": "POLICE",
     "Read-Only User": "READ_ONLY"
   };
-  const userRoles = new Set(
-    [...(user.roles || []), user.role]
-      .filter(Boolean)
-      .flatMap(role => [role, roleAliases[role] || role])
-  );
+  const roles = [...(user.roles || []), user.role]
+    .filter(Boolean)
+    .map(role => roleAliases[role] || role);
 
-  if (userRoles.has("CLERK")) {
-    document.querySelectorAll('a.nav-item[href="DoctorDashboard.html"]')
-      .forEach(item => {
-        item.href = "ClerkDashboard.html";
-      });
-  }
+  const dashboardByRole = {
+    ADMIN: "AdminDashboard.html",
+    JMO: "JMODashboard.html",
+    ASSISTANT_JMO: "AssistantJMODashboard.html",
+    DOCTOR: "DoctorDashboard.html",
+    CLERK: "ClerkDashboard.html",
+    LAB: "LabDashboard.html"
+  };
+  const dashboard = roles
+    .map(role => dashboardByRole[role])
+    .find(Boolean);
 
-  document.querySelectorAll(".nav-item").forEach(item => {
-    const allowedRoles = (item.dataset.roles || "")
-      .split(",")
-      .map(role => role.trim())
-      .filter(Boolean);
-    const isAllowed = !allowedRoles.length ||
-      allowedRoles.some(role => userRoles.has(role));
-
-    item.style.pointerEvents = isAllowed ? "auto" : "none";
-    item.style.opacity = isAllowed ? "1" : "0.45";
-    item.style.cursor = isAllowed ? "pointer" : "not-allowed";
-    if (isAllowed) {
-      item.removeAttribute("title");
-    } else {
-      item.title = "Access denied";
-    }
+  const navItems = document.querySelectorAll(".nav-item");
+  navItems.forEach(item => {
+    item.style.pointerEvents = "auto";
+    item.style.opacity = "1";
+    item.style.cursor = "pointer";
+    item.removeAttribute("title");
   });
+
+  if (dashboard) {
+    navItems.forEach(item => {
+      const label = item.textContent.trim().toLowerCase();
+      if (label === "dashboard" || /Dashboard\.html$/i.test(item.getAttribute("href") || "")) {
+        item.href = dashboard;
+      }
+    });
+  }
 });

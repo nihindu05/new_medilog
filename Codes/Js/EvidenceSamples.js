@@ -224,8 +224,8 @@ const dom = {
   btnSuccessGoDocuments: document.getElementById("btnSuccessGoDocuments")
 };
 
-let caseRecords = loadCaseRecords();
-let examinationRecords = loadExaminations();
+let caseRecords = [];
+let examinationRecords = [];
 let evidenceRecords = loadEvidenceRecords();
 let selectedExam = null;
 let selectedCase = null;
@@ -452,6 +452,25 @@ function renderSourceSummary(exam) {
   `;
 }
 
+function renderCaseOnlySummary(caseRecord) {
+  dom.sourceSummaryPanel.innerHTML = `
+    <div class="selected-case-summary">
+      <div class="summary-main">
+        <small>Selected Case</small>
+        <strong>${display(caseRecord.id)}</strong>
+        <span class="badge ${caseRecord.type === "clinical" ? "success" : "warn"}">
+          ${typeLabel(caseRecord.type)}
+        </span>
+      </div>
+      <div class="summary-cell"><small>Patient</small><span>${display(caseRecord.patientName)}<br>${display(caseRecord.patientId)}</span></div>
+      <div class="summary-cell"><small>Category</small><span>${display(caseRecord.category)}</span></div>
+      <div class="summary-cell"><small>Status</small><span>${display(caseRecord.status)}</span></div>
+      <div class="summary-cell"><small>Reference</small><span>${display(mainReference(caseRecord))}</span></div>
+      <div class="summary-cell"><small>Next step</small><span>Complete or save an examination before registering evidence.</span></div>
+    </div>
+  `;
+}
+
 function selectExamination(examId) {
   selectedExam = findExam(examId);
   selectedCase = selectedExam ? findCase(selectedExam.caseId) : null;
@@ -608,9 +627,11 @@ function getFormData(statusOverride) {
   const status = statusOverride || value("sampleStatus") || "Sealed";
 
   return {
+    databaseId: existing?.databaseId || null,
     id: value("sampleId") || generateSampleId(),
     caseId: value("sampleCaseId"),
     examId: value("sampleExamId"),
+    examDatabaseId: selectedExam?.databaseId || existing?.examDatabaseId || null,
     patientId: value("samplePatientId"),
     patientName: selectedExam?.patientName || existing?.patientName || "",
     caseType: selectedExam?.caseType || existing?.caseType || selectedCase?.type || "clinical",
@@ -621,7 +642,7 @@ function getFormData(statusOverride) {
     sampleQuantity: value("sampleQuantity"),
     containerType: value("containerType"),
     evidencePriority: value("evidencePriority"),
-    collectedDateTime: value("collectedDateTime"),
+    collectedDateTime: value("collectedDateTime") || localDateTimeValue(),
     collectedBy: value("collectedBy"),
     sealNo: value("sealNo"),
     barcodeNo: value("barcodeNo"),
@@ -646,7 +667,7 @@ function getFormData(statusOverride) {
   };
 }
 
-function saveEvidence(statusOverride) {
+async function saveEvidence(statusOverride) {
   const isDraft = statusOverride === "Draft";
   const record = getFormData(statusOverride);
   const missing = validateRecord(record, isDraft);
@@ -657,7 +678,18 @@ function saveEvidence(statusOverride) {
     return;
   }
 
-  evidenceRecords = [record, ...evidenceRecords.filter(item => item.id !== record.id)];
+  try {
+    const saved = await window.MedLogsAPI.post("/evidence", record);
+    record.databaseId = saved.databaseId;
+    record.id = saved.id || record.id;
+  } catch (error) {
+    alert(`Evidence could not be saved: ${error.message}`);
+    return;
+  }
+
+  evidenceRecords = [record, ...evidenceRecords.filter(item =>
+    item.databaseId !== record.databaseId && item.id !== record.id
+  )];
   selectedEvidenceId = record.id;
   lastSavedRecord = record;
 
@@ -1032,12 +1064,31 @@ function initFromUrl() {
     if (exam) {
       dom.examinationSelect.value = exam.id;
       selectExamination(exam.id);
+    } else {
+      selectedCase = findCase(caseId);
+      if (selectedCase) {
+        setValue("sampleCaseId", selectedCase.id);
+        setValue("samplePatientId", selectedCase.patientId);
+        renderCaseOnlySummary(selectedCase);
+      }
     }
   }
 }
 
-function init() {
+async function init() {
   bindEvents();
+  try {
+    [caseRecords, examinationRecords, evidenceRecords] = await Promise.all([
+      window.MedLogsAPI.get("/cases"),
+      window.MedLogsAPI.get("/examinations"),
+      window.MedLogsAPI.get("/evidence")
+    ]);
+  } catch (error) {
+    caseRecords = loadCaseRecords();
+    examinationRecords = loadExaminations();
+    evidenceRecords = loadEvidenceRecords();
+    alert(`Current case or examination data could not be loaded: ${error.message}`);
+  }
   populateExaminationSelect();
   setInitialFormValues();
   renderSourceSummary(null);

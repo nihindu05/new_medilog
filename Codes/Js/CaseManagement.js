@@ -84,6 +84,9 @@ const dom = {
 };
 
 let records = loadRecords();
+let patients = [];
+let examinationRecords = [];
+let evidenceRecords = [];
 let currentRegistrationType = "clinical";
 let currentDetailsType = "clinical";
 let selectedCaseId = records[0]?.id || null;
@@ -140,6 +143,33 @@ async function refreshCasesFromApi() {
   } catch (error) {
     alert(`Case records could not be loaded: ${error.message}`);
   }
+}
+
+async function refreshPatientsFromApi() {
+  try {
+    patients = await window.MedLogsAPI.get("/patients");
+  } catch (error) {
+    patients = loadStorageArray(PATIENT_STORAGE_KEY);
+    throw new Error(`Patient records could not be loaded: ${error.message}`);
+  }
+}
+
+async function refreshExaminationsFromApi() {
+  try {
+    examinationRecords = await window.MedLogsAPI.get("/examinations");
+  } catch (error) {
+    examinationRecords = loadStorageArray(EXAM_STORAGE_KEY);
+  }
+  renderLinkedRecords();
+}
+
+async function refreshEvidenceFromApi() {
+  try {
+    evidenceRecords = await window.MedLogsAPI.get("/evidence");
+  } catch (error) {
+    evidenceRecords = loadStorageArray(EVIDENCE_STORAGE_KEY);
+  }
+  renderLinkedRecords();
 }
 
 function pad(number, size = 6) {
@@ -204,7 +234,7 @@ function miniList(items, emptyMessage) {
 }
 
 function linkedExaminations(caseId) {
-  return loadStorageArray(EXAM_STORAGE_KEY)
+  return examinationRecords
     .filter(exam => exam.caseId === caseId)
     .sort((a, b) => new Date(b.examDateTime || 0) - new Date(a.examDateTime || 0));
 }
@@ -214,7 +244,7 @@ function latestExamination(caseId) {
 }
 
 function linkedEvidence(caseId) {
-  return loadStorageArray(EVIDENCE_STORAGE_KEY).filter(item => item.caseId === caseId);
+  return evidenceRecords.filter(item => item.caseId === caseId);
 }
 
 function linkedReports(caseId) {
@@ -232,7 +262,6 @@ function readUrlParams() {
 }
 
 function findPatient(patientId) {
-  const patients = loadStorageArray(PATIENT_STORAGE_KEY);
   return patients.find(patient => patient.id === patientId) || null;
 }
 
@@ -242,7 +271,7 @@ function searchPatients(query) {
 
   const wantedStatus = currentRegistrationType === "autopsy" ? "deceased" : "living";
 
-  return loadStorageArray(PATIENT_STORAGE_KEY)
+  return patients
     .filter(patient => patient.personStatus === wantedStatus)
     .filter(patient =>
       [patient.id, patient.fullName, patient.nicPassportNo, patient.hospitalNo, patient.bhtNo, patient.contactNo]
@@ -1228,6 +1257,17 @@ function goToLabRequestFromCase() {
   window.location.href = `LabTest_Toxicology.html?${params.toString()}`;
 }
 
+function goToEvidenceFromCase() {
+  if (!selectedCaseId) {
+    alert("Please select a case first.");
+    return;
+  }
+  const params = new URLSearchParams({ caseId: selectedCaseId });
+  const examination = latestExamination(selectedCaseId);
+  if (examination) params.set("examId", examination.id);
+  window.location.href = `EvidenceSamples.html?${params.toString()}`;
+}
+
 function goToReportFromCase() {
   if (!selectedCaseId) {
     alert("Please select a case first.");
@@ -1458,6 +1498,7 @@ document.getElementById("btnGenerateMlrLater")?.addEventListener("click", () => 
     });
   }
 document.getElementById("btnStartExaminationFromCase")?.addEventListener("click", goToExaminationFromCase);
+document.getElementById("btnEvidenceSamplesFromCase")?.addEventListener("click", goToEvidenceFromCase);
 document.getElementById("btnAddLabRequestFromCase")?.addEventListener("click", goToLabRequestFromCase);
 document.getElementById("btnGenerateReportFromCase")?.addEventListener("click", goToReportFromCase);
 } // This cleanly closes the bindEvents function structure
@@ -1597,7 +1638,7 @@ function populateFormForEditing(caseId) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function init() {
+async function init() {
   updateTopbarLiveDate();
 
   bindEvents();
@@ -1610,8 +1651,17 @@ function init() {
   renderCaseTable();
   renderStats();
   applyRolePermissions();
+  try {
+    await refreshPatientsFromApi();
+  } catch (error) {
+    alert(error.message);
+  }
+  await Promise.all([
+    refreshCasesFromApi(),
+    refreshExaminationsFromApi(),
+    refreshEvidenceFromApi()
+  ]);
   initFromUrl();
-  refreshCasesFromApi();
 }
 
 init();
@@ -1777,7 +1827,7 @@ function globalSearchMatches(query) {
   });
 
   // 2. Patients (resolved to their cases)
-  loadStorageArray(PATIENT_STORAGE_KEY).forEach(patient => {
+  patients.forEach(patient => {
     const haystack = [
       patient.id, patient.fullName, patient.nicPassportNo,
       patient.hospitalNo, patient.bhtNo, patient.contactNo

@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, g, jsonify, request
 
 from database import get_connection
@@ -20,6 +22,10 @@ EXAM_WRITE_ROLES = (
     "Medical Officer Medico-Legal", "Assistant JMO",
 )
 LAB_WRITE_ROLES = ("System Administrator", "Laboratory Staff")
+EVIDENCE_WRITE_ROLES = (
+    "System Administrator", "Consultant JMO",
+    "Medical Officer Medico-Legal", "Assistant JMO", "Laboratory Staff",
+)
 
 
 def _body():
@@ -29,6 +35,464 @@ def _body():
 def _required(data, *names):
     missing = [name for name in names if not str(data.get(name, "")).strip()]
     return missing
+
+
+def _visible_case(cursor, case_id):
+    cursor.execute(
+        """
+        SELECT 1
+        FROM forensic_case
+        WHERE case_id = %s
+          AND (jmo_office_id = %s OR %s = ANY(%s))
+        """,
+        (
+            case_id,
+            g.current_user["officeId"],
+            "System Administrator",
+            g.current_user["roles"],
+        ),
+    )
+    return cursor.fetchone() is not None
+
+
+@records_api.route("/examinations", methods=["GET"])
+@require_auth(*READ_ROLES)
+def list_examinations():
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT e.examination_id, e.case_id, e.exam_type, e.exam_datetime,
+                       e.exam_place, e.examination_status, e.notes
+                FROM examination e
+                JOIN forensic_case fc ON fc.case_id = e.case_id
+                WHERE fc.jmo_office_id = %s OR %s = ANY(%s)
+                ORDER BY e.exam_datetime DESC
+                """,
+                (
+                    g.current_user["officeId"],
+                    "System Administrator",
+                    g.current_user["roles"],
+                ),
+            )
+            examinations = []
+            for row in cursor.fetchall():
+                try:
+                    item = json.loads(row[6]) if row[6] else {}
+                except (TypeError, ValueError):
+                    item = {"generalNotes": row[6] or ""}
+                item.update({
+                    "databaseId": row[0],
+                    "id": item.get("id") or f"EXAM-{row[0]:06d}",
+                    "caseId": row[1],
+                    "examType": row[2],
+                    "examDateTime": row[3].isoformat(),
+                    "examPlace": row[4] or "",
+                    "status": row[5],
+                })
+
+                cursor.execute(
+                    """
+                    SELECT injury_id, injury_type, body_location, side, length,
+                           width, depth, description, injury_age, severity,
+                           weapon_opinion, is_fatal
+                    FROM injury
+                    WHERE examination_id = %s
+                    ORDER BY injury_id
+                    """,
+                    (row[0],),
+                )
+                injury_rows = cursor.fetchall()
+                injury_ids = {}
+                item["injuries"] = []
+                for injury_row in injury_rows:
+                    client_id = f"INJ-{injury_row[0]:06d}"
+                    injury_ids[injury_row[0]] = client_id
+                    item["injuries"].append({
+                        "id": client_id,
+                        "markerId": "",
+                        "type": injury_row[1],
+                        "bodyLocation": injury_row[2],
+                        "side": injury_row[3] or "",
+                        "length": str(injury_row[4]) if injury_row[4] is not None else "",
+                        "width": str(injury_row[5]) if injury_row[5] is not None else "",
+                        "depth": str(injury_row[6]) if injury_row[6] is not None else "",
+                        "description": injury_row[7] or "",
+                        "injuryAge": injury_row[8] or "",
+                        "severity": injury_row[9] or "",
+                        "weaponOpinion": injury_row[10] or "",
+                        "isFatal": "Yes" if injury_row[11] else "No",
+                    })
+
+                cursor.execute(
+                    """
+                    SELECT marking_id, injury_id, body_region, x_coordinate,
+                           y_coordinate, marking_description
+                    FROM body_diagram_marking
+                    WHERE examination_id = %s
+                    ORDER BY marking_id
+                    """,
+                    (row[0],),
+                )
+                item["diagramMarkers"] = []
+                for marker in cursor.fetchall():
+                    marker_id = f"M{marker[0]}"
+                    linked_injury = injury_ids.get(marker[1], "")
+                    item["diagramMarkers"].append({
+                        "id": marker_id,
+                        "injuryId": linked_injury,
+                        "view": marker[5] or "front",
+                        "bodyRegion": marker[2],
+                        "x": float(marker[3]) if marker[3] is not None else 0,
+                        "y": float(marker[4]) if marker[4] is not None else 0,
+                    })
+                    if linked_injury:
+                        for injury in item["injuries"]:
+                            if injury["id"] == linked_injury:
+                                injury["markerId"] = marker_id
+
+                cursor.execute(
+                    """
+                    SELECT internal_finding_id, organ_name, finding_description,
+                           pathological_condition
+                    FROM internal_finding
+                    WHERE examination_id = %s
+                    ORDER BY internal_finding_id
+                    """,
+                    (row[0],),
+                )
+                item["organFindings"] = [
+                    {
+                        "id": f"ORG-{finding[0]:06d}",
+                        "organName": finding[1],
+                        "findingDescription": finding[2],
+                        "pathologicalCondition": finding[3] or "",
+                    }
+                    for finding in cursor.fetchall()
+                ]
+                examinations.append(item)
+            return jsonify(examinations)
+    finally:
+        connection.close()
+
+
+@records_api.route("/examinations", methods=["POST"])
+@require_auth(*EXAM_WRITE_ROLES)
+def save_examination():
+    data = _body()
+    missing = _required(data, "caseId", "examType", "examDateTime")
+    if missing:
+        return jsonify({"message": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            if not _visible_case(cursor, data["caseId"]):
+                return jsonify({"message": "Case not found or access denied."}), 404
+
+            database_id = data.get("databaseId")
+            notes = json.dumps(data)
+            if database_id:
+                cursor.execute(
+                    """
+                    UPDATE examination
+                    SET case_id=%s, exam_type=%s, exam_datetime=%s, exam_place=%s,
+                        examination_status=%s, notes=%s
+                    WHERE examination_id=%s
+                    RETURNING examination_id
+                    """,
+                    (
+                        data["caseId"], data["examType"], data["examDateTime"],
+                        data.get("examPlace"), data.get("status") or "Draft",
+                        notes, database_id,
+                    ),
+                )
+                updated = cursor.fetchone()
+                if not updated:
+                    return jsonify({"message": "Examination not found."}), 404
+                examination_id = updated[0]
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO examination (
+                        case_id, exam_type, exam_datetime, exam_place,
+                        examination_status, notes, created_by_user_id
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING examination_id
+                    """,
+                    (
+                        data["caseId"], data["examType"], data["examDateTime"],
+                        data.get("examPlace"), data.get("status") or "Draft",
+                        notes, g.current_user["id"],
+                    ),
+                )
+                examination_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                "DELETE FROM body_diagram_marking WHERE examination_id=%s",
+                (examination_id,),
+            )
+            cursor.execute(
+                "DELETE FROM injury WHERE examination_id=%s",
+                (examination_id,),
+            )
+            cursor.execute(
+                "DELETE FROM internal_finding WHERE examination_id=%s",
+                (examination_id,),
+            )
+
+            injury_id_map = {}
+            for injury in data.get("injuries") or []:
+                cursor.execute(
+                    """
+                    INSERT INTO injury (
+                        examination_id, injury_type, body_location, side,
+                        length, width, depth, description, injury_age, severity,
+                        weapon_opinion, is_fatal
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING injury_id
+                    """,
+                    (
+                        examination_id,
+                        injury.get("type") or "Not recorded",
+                        injury.get("bodyLocation") or "Not recorded",
+                        injury.get("side") or None,
+                        injury.get("length") or None,
+                        injury.get("width") or None,
+                        injury.get("depth") or None,
+                        injury.get("description") or None,
+                        injury.get("injuryAge") or None,
+                        injury.get("severity") or None,
+                        injury.get("weaponOpinion") or None,
+                        str(injury.get("isFatal") or "").lower() in {"yes", "true", "1"},
+                    ),
+                )
+                injury_id_map[str(injury.get("id"))] = cursor.fetchone()[0]
+
+            for marker in data.get("diagramMarkers") or []:
+                cursor.execute(
+                    """
+                    INSERT INTO body_diagram_marking (
+                        examination_id, injury_id, body_region, x_coordinate,
+                        y_coordinate, marking_description
+                    ) VALUES (%s,%s,%s,%s,%s,%s)
+                    """,
+                    (
+                        examination_id,
+                        injury_id_map.get(str(marker.get("injuryId"))),
+                        marker.get("bodyRegion") or "Not recorded",
+                        marker.get("x"),
+                        marker.get("y"),
+                        marker.get("view") or "front",
+                    ),
+                )
+
+            for finding in data.get("organFindings") or []:
+                cursor.execute(
+                    """
+                    INSERT INTO internal_finding (
+                        examination_id, organ_name, finding_description,
+                        pathological_condition
+                    ) VALUES (%s,%s,%s,%s)
+                    """,
+                    (
+                        examination_id,
+                        finding.get("organName") or "Not recorded",
+                        finding.get("findingDescription") or "Not recorded",
+                        finding.get("pathologicalCondition") or None,
+                    ),
+                )
+        connection.commit()
+        return jsonify({
+            "databaseId": examination_id,
+            "id": data.get("id") or f"EXAM-{examination_id:06d}",
+            "message": "Examination and injury records saved.",
+        }), 201
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@records_api.route("/evidence", methods=["GET"])
+@require_auth(*READ_ROLES)
+def list_evidence():
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT s.sample_id, s.sample_reference, s.case_id,
+                       s.examination_id, s.sample_type, s.collected_datetime,
+                       s.seal_no, s.storage_condition, s.sample_status, s.metadata
+                FROM sample_evidence s
+                JOIN forensic_case fc ON fc.case_id = s.case_id
+                WHERE fc.jmo_office_id = %s OR %s = ANY(%s)
+                ORDER BY s.collected_datetime DESC
+                """,
+                (
+                    g.current_user["officeId"],
+                    "System Administrator",
+                    g.current_user["roles"],
+                ),
+            )
+            result = []
+            for row in cursor.fetchall():
+                item = dict(row[9] or {})
+                item.update({
+                    "databaseId": row[0],
+                    "id": row[1] or item.get("id") or f"SMP-{row[0]:06d}",
+                    "caseId": row[2],
+                    "examDatabaseId": row[3],
+                    "sampleType": row[4],
+                    "collectedDateTime": row[5].isoformat(),
+                    "sealNo": row[6] or "",
+                    "storageCondition": row[7] or "",
+                    "sampleStatus": row[8],
+                })
+                cursor.execute(
+                    """
+                    SELECT custody_id, transfer_datetime, action_type,
+                           seal_status, remarks
+                    FROM chain_of_custody
+                    WHERE sample_id = %s
+                    ORDER BY transfer_datetime, custody_id
+                    """,
+                    (row[0],),
+                )
+                item["custodyEvents"] = []
+                for custody in cursor.fetchall():
+                    try:
+                        details = json.loads(custody[4]) if custody[4] else {}
+                    except (TypeError, ValueError):
+                        details = {"remarks": custody[4] or ""}
+                    details.update({
+                        "databaseId": custody[0],
+                        "id": details.get("id") or f"COC-{custody[0]:06d}",
+                        "transferDateTime": custody[1].isoformat(),
+                        "actionType": custody[2],
+                        "sealStatus": custody[3] or "",
+                    })
+                    item["custodyEvents"].append(details)
+                result.append(item)
+            return jsonify(result)
+    finally:
+        connection.close()
+
+
+@records_api.route("/evidence", methods=["POST"])
+@require_auth(*EVIDENCE_WRITE_ROLES)
+def save_evidence():
+    data = _body()
+    missing = _required(
+        data, "caseId", "examDatabaseId", "sampleType", "collectedDateTime"
+    )
+    if missing:
+        return jsonify({"message": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            if not _visible_case(cursor, data["caseId"]):
+                return jsonify({"message": "Case not found or access denied."}), 404
+            cursor.execute(
+                """
+                SELECT 1 FROM examination
+                WHERE examination_id=%s AND case_id=%s
+                """,
+                (data["examDatabaseId"], data["caseId"]),
+            )
+            if not cursor.fetchone():
+                return jsonify({"message": "The selected examination does not belong to this case."}), 400
+
+            cursor.execute(
+                "SELECT doctor_id FROM user_account WHERE user_id=%s",
+                (g.current_user["id"],),
+            )
+            doctor_row = cursor.fetchone()
+            doctor_id = doctor_row[0] if doctor_row else None
+            metadata = dict(data)
+            metadata.pop("custodyEvents", None)
+
+            database_id = data.get("databaseId")
+            if database_id:
+                cursor.execute(
+                    """
+                    UPDATE sample_evidence
+                    SET sample_reference=%s, case_id=%s, examination_id=%s,
+                        sample_type=%s, collected_datetime=%s,
+                        collected_by_doctor_id=%s, seal_no=%s,
+                        storage_condition=%s, sample_status=%s, metadata=%s::jsonb
+                    WHERE sample_id=%s
+                    RETURNING sample_id
+                    """,
+                    (
+                        data.get("id"), data["caseId"], data["examDatabaseId"],
+                        data["sampleType"], data["collectedDateTime"], doctor_id,
+                        data.get("sealNo") or None,
+                        data.get("storageCondition") or None,
+                        data.get("sampleStatus") or "Collected",
+                        json.dumps(metadata), database_id,
+                    ),
+                )
+                saved = cursor.fetchone()
+                if not saved:
+                    return jsonify({"message": "Evidence record not found."}), 404
+                sample_id = saved[0]
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO sample_evidence (
+                        sample_reference, case_id, examination_id, sample_type,
+                        collected_datetime, collected_by_doctor_id, seal_no,
+                        storage_condition, sample_status, metadata
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)
+                    RETURNING sample_id
+                    """,
+                    (
+                        data.get("id"), data["caseId"], data["examDatabaseId"],
+                        data["sampleType"], data["collectedDateTime"], doctor_id,
+                        data.get("sealNo") or None,
+                        data.get("storageCondition") or None,
+                        data.get("sampleStatus") or "Collected",
+                        json.dumps(metadata),
+                    ),
+                )
+                sample_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                "DELETE FROM chain_of_custody WHERE sample_id=%s",
+                (sample_id,),
+            )
+            for event in data.get("custodyEvents") or []:
+                cursor.execute(
+                    """
+                    INSERT INTO chain_of_custody (
+                        sample_id, transfer_datetime, action_type,
+                        seal_status, remarks
+                    ) VALUES (%s,%s,%s,%s,%s)
+                    """,
+                    (
+                        sample_id,
+                        event.get("transferDateTime"),
+                        event.get("actionType") or "Recorded",
+                        event.get("sealStatus") or None,
+                        json.dumps(event),
+                    ),
+                )
+        connection.commit()
+        return jsonify({
+            "databaseId": sample_id,
+            "id": data.get("id") or f"SMP-{sample_id:06d}",
+            "message": "Evidence and chain-of-custody records saved.",
+        }), 201
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 @records_api.route("/patients", methods=["GET"])
