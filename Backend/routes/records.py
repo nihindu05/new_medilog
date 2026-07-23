@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from flask import Blueprint, g, jsonify, request
 
@@ -23,6 +24,10 @@ EXAM_WRITE_ROLES = (
 )
 LAB_WRITE_ROLES = ("System Administrator", "Laboratory Staff")
 EVIDENCE_WRITE_ROLES = (
+    "System Administrator", "Consultant JMO",
+    "Medical Officer Medico-Legal", "Assistant JMO", "Laboratory Staff",
+)
+LAB_REQUEST_WRITE_ROLES = (
     "System Administrator", "Consultant JMO",
     "Medical Officer Medico-Legal", "Assistant JMO", "Laboratory Staff",
 )
@@ -487,6 +492,244 @@ def save_evidence():
             "databaseId": sample_id,
             "id": data.get("id") or f"SMP-{sample_id:06d}",
             "message": "Evidence and chain-of-custody records saved.",
+        }), 201
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@records_api.route("/lab-requests", methods=["GET"])
+@require_auth(*READ_ROLES)
+def list_lab_requests():
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT lr.lab_request_id, lr.request_reference, lr.sample_id,
+                       lr.requested_test_type, lr.requested_date,
+                       lr.request_status, lr.metadata, l.laboratory_name,
+                       s.case_id, s.sample_type, s.sample_reference,
+                       res.lab_result_id, res.result_summary, res.result_details,
+                       res.result_date
+                FROM lab_request lr
+                JOIN sample_evidence s ON s.sample_id = lr.sample_id
+                JOIN forensic_case fc ON fc.case_id = s.case_id
+                JOIN laboratory l ON l.laboratory_id = lr.laboratory_id
+                LEFT JOIN LATERAL (
+                    SELECT lab_result_id, result_summary, result_details, result_date
+                    FROM lab_result
+                    WHERE lab_request_id = lr.lab_request_id
+                    ORDER BY lab_result_id DESC
+                    LIMIT 1
+                ) res ON true
+                WHERE fc.jmo_office_id = %s OR %s = ANY(%s)
+                ORDER BY lr.requested_date DESC, lr.lab_request_id DESC
+                """,
+                (
+                    g.current_user["officeId"],
+                    "System Administrator",
+                    g.current_user["roles"],
+                ),
+            )
+            result = []
+            for row in cursor.fetchall():
+                item = dict(row[6] or {})
+                item.update({
+                    "databaseId": row[0],
+                    "requestId": row[1] or item.get("requestId") or f"LR-{row[0]:06d}",
+                    "sampleDatabaseId": row[2],
+                    "testType": item.get("testType") or row[3],
+                    "requestedDate": row[4].isoformat(),
+                    "status": row[5],
+                    "laboratory": row[7],
+                    "caseId": row[8],
+                    "sampleType": row[9],
+                    "sampleId": row[10] or f"SMP-{row[2]:06d}",
+                    "resultDatabaseId": row[11],
+                    "resultSummary": row[12] or item.get("resultSummary") or "",
+                    "resultDetails": row[13] or item.get("resultDetails") or "",
+                    "resultDate": row[14].isoformat() if row[14] else item.get("resultDate"),
+                })
+                result.append(item)
+            return jsonify(result)
+    finally:
+        connection.close()
+
+
+@records_api.route("/lab-requests", methods=["POST"])
+@require_auth(*LAB_REQUEST_WRITE_ROLES)
+def save_lab_request():
+    data = _body()
+    missing = _required(
+        data, "caseId", "requestId", "testType", "sampleType", "laboratory"
+    )
+    if missing:
+        return jsonify({"message": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    connection = get_connection()
+    try:
+        with connection.cursor() as cursor:
+            if not _visible_case(cursor, data["caseId"]):
+                return jsonify({"message": "Case not found or access denied."}), 404
+
+            cursor.execute(
+                "SELECT laboratory_id FROM laboratory WHERE lower(laboratory_name)=lower(%s) LIMIT 1",
+                (data["laboratory"],),
+            )
+            laboratory_row = cursor.fetchone()
+            if laboratory_row:
+                laboratory_id = laboratory_row[0]
+            else:
+                cursor.execute(
+                    "INSERT INTO laboratory (laboratory_name) VALUES (%s) RETURNING laboratory_id",
+                    (data["laboratory"],),
+                )
+                laboratory_id = cursor.fetchone()[0]
+
+            cursor.execute(
+                "SELECT doctor_id FROM user_account WHERE user_id=%s",
+                (g.current_user["id"],),
+            )
+            doctor_row = cursor.fetchone()
+            doctor_id = doctor_row[0] if doctor_row else None
+
+            request_id = data.get("databaseId")
+            sample_id = data.get("sampleDatabaseId")
+            if request_id and not sample_id:
+                cursor.execute(
+                    "SELECT sample_id FROM lab_request WHERE lab_request_id=%s",
+                    (request_id,),
+                )
+                sample_row = cursor.fetchone()
+                sample_id = sample_row[0] if sample_row else None
+
+            if sample_id:
+                cursor.execute(
+                    """
+                    UPDATE sample_evidence
+                    SET case_id=%s, sample_type=%s, seal_no=%s,
+                        storage_condition=%s, sample_status=%s
+                    WHERE sample_id=%s
+                    RETURNING sample_id
+                    """,
+                    (
+                        data["caseId"], data["sampleType"],
+                        None if data.get("sealNumber") in {None, "", "Pending"} else data.get("sealNumber"),
+                        data.get("storageCondition") or None,
+                        "Collected" if data.get("sampleCondition") not in {None, "Not collected"} else "Awaiting Collection",
+                        sample_id,
+                    ),
+                )
+                if not cursor.fetchone():
+                    return jsonify({"message": "Linked sample was not found."}), 404
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO sample_evidence (
+                        sample_reference, case_id, sample_type, collected_datetime,
+                        collected_by_doctor_id, seal_no, storage_condition,
+                        sample_status, metadata
+                    ) VALUES (%s,%s,%s,CURRENT_TIMESTAMP,%s,%s,%s,%s,%s::jsonb)
+                    RETURNING sample_id
+                    """,
+                    (
+                        f"{data['requestId']}-SMP", data["caseId"], data["sampleType"],
+                        doctor_id,
+                        None if data.get("sealNumber") in {None, "", "Pending"} else data.get("sealNumber"),
+                        data.get("storageCondition") or None,
+                        "Awaiting Collection",
+                        json.dumps({"createdFromLabRequest": data["requestId"]}),
+                    ),
+                )
+                sample_id = cursor.fetchone()[0]
+
+            metadata = dict(data)
+            if request_id:
+                cursor.execute(
+                    """
+                    UPDATE lab_request
+                    SET request_reference=%s, sample_id=%s, laboratory_id=%s,
+                        requested_test_type=%s, requested_date=%s,
+                        requested_by_doctor_id=%s, request_status=%s,
+                        metadata=%s::jsonb
+                    WHERE lab_request_id=%s
+                    RETURNING lab_request_id
+                    """,
+                    (
+                        data["requestId"], sample_id, laboratory_id,
+                        data.get("specificTest") or data["testType"],
+                        data.get("requestedDate") or date.today().isoformat(),
+                        doctor_id, data.get("status") or "Draft",
+                        json.dumps(metadata), request_id,
+                    ),
+                )
+                saved = cursor.fetchone()
+                if not saved:
+                    return jsonify({"message": "Laboratory request not found."}), 404
+                lab_request_id = saved[0]
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO lab_request (
+                        request_reference, sample_id, laboratory_id,
+                        requested_test_type, requested_date,
+                        requested_by_doctor_id, request_status, metadata
+                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s::jsonb)
+                    RETURNING lab_request_id
+                    """,
+                    (
+                        data["requestId"], sample_id, laboratory_id,
+                        data.get("specificTest") or data["testType"],
+                        data.get("requestedDate") or date.today().isoformat(),
+                        doctor_id, data.get("status") or "Draft",
+                        json.dumps(metadata),
+                    ),
+                )
+                lab_request_id = cursor.fetchone()[0]
+
+            result_summary = str(data.get("resultSummary") or "").strip()
+            if result_summary:
+                cursor.execute(
+                    "SELECT lab_result_id FROM lab_result WHERE lab_request_id=%s ORDER BY lab_result_id DESC LIMIT 1",
+                    (lab_request_id,),
+                )
+                result_row = cursor.fetchone()
+                if result_row:
+                    cursor.execute(
+                        """
+                        UPDATE lab_result
+                        SET result_summary=%s, result_details=%s, result_date=%s,
+                            entered_by_user_id=%s
+                        WHERE lab_result_id=%s
+                        """,
+                        (
+                            result_summary, data.get("resultDetails"),
+                            data.get("resultDate") or None,
+                            g.current_user["id"], result_row[0],
+                        ),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO lab_result (
+                            lab_request_id, result_summary, result_details,
+                            result_date, entered_by_user_id
+                        ) VALUES (%s,%s,%s,%s,%s)
+                        """,
+                        (
+                            lab_request_id, result_summary, data.get("resultDetails"),
+                            data.get("resultDate") or None, g.current_user["id"],
+                        ),
+                    )
+        connection.commit()
+        return jsonify({
+            "databaseId": lab_request_id,
+            "sampleDatabaseId": sample_id,
+            "requestId": data["requestId"],
+            "message": "Laboratory request saved.",
         }), 201
     except Exception:
         connection.rollback()

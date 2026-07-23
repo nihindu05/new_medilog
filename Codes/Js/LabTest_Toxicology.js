@@ -19,7 +19,21 @@ function saveLabRequests() {
   }
 }
 
-const labRequests = loadLabRequests();
+let labRequests = [];
+
+async function persistLabRequest(request) {
+  try {
+    const saved = await window.MedLogsAPI.post("/lab-requests", request);
+    request.databaseId = saved.databaseId;
+    request.sampleDatabaseId = saved.sampleDatabaseId;
+    request.requestId = saved.requestId || request.requestId;
+    saveLabRequests();
+    return true;
+  } catch (error) {
+    showToast(`Database update failed: ${error.message}`);
+    return false;
+  }
+}
 
 let currentPage = 1;
 const ROWS_PER_PAGE = 10;
@@ -614,6 +628,7 @@ document.getElementById("workflowActionButton").addEventListener("click", () => 
   step.apply(selectedRequest, values);
   selectedRequest.history.push([stampNow(), step.historyLabel(selectedRequest, values)]);
   saveLabRequests();
+  persistLabRequest(selectedRequest);
   renderTable();
   openRequestDetails(selectedRequest.requestId);
   showToast(`${selectedRequest.requestId}: ${step.label} done.`);
@@ -639,6 +654,7 @@ function submitDraft(requestId) {
   ]);
 
   saveLabRequests();
+  persistLabRequest(request);
   renderTable();
   showToast(`${requestId} was submitted successfully.`);
 }
@@ -704,6 +720,7 @@ function createRequestFromForm(status) {
 
   labRequests.unshift(newRequest);
   saveLabRequests();
+  persistLabRequest(newRequest);
   closeModal(newRequestModal);
   newRequestForm.reset();
   document.getElementById("requestingJmoInput").value = "Dr. A. Perera";
@@ -999,5 +1016,15 @@ function prefillFromUrl() {
   showToast(`Case ${caseId} is ready. Press "New Lab Request" to continue.`);
 }
 
-renderTable();
-prefillFromUrl();
+async function initializeLabPage() {
+  try {
+    labRequests = await window.MedLogsAPI.get("/lab-requests");
+  } catch (error) {
+    labRequests = loadLabRequests();
+    showToast(`Current laboratory requests could not be loaded: ${error.message}`);
+  }
+  renderTable();
+  prefillFromUrl();
+}
+
+initializeLabPage();
