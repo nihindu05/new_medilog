@@ -1,5 +1,10 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  lucide.createIcons();
+  document.getElementById("logoutBtn")?.addEventListener("click", () => {
+    window.MedLogsAPI.clearSession();
+    window.location.replace("auth.html");
+  });
+
+  window.lucide?.createIcons();
 
   const table = document.getElementById("adminUsersTable");
   const escapeHtml = value => String(value ?? "")
